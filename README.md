@@ -23,12 +23,15 @@ It does not modify user configuration during installation or startup.
 
 [![Select and apply a video wallpaper](docs/assets/select-video-wallpaper-preview.gif)](docs/assets/select-video-wallpaper.mp4)
 
+[Watch the full 1080p video](docs/assets/select-video-wallpaper.mp4)
+
 ### Add wallpaper files and select a video
 
 [![Add wallpaper files and select a video](docs/assets/add-and-select-video-wallpaper-preview.gif)](docs/assets/add-and-select-video-wallpaper.mp4)
 
-Both demonstrations show the plugin running on Omarchy. Click either preview
-to open its full 1080p recording.
+[Watch the full 1080p video](docs/assets/add-and-select-video-wallpaper.mp4)
+
+Both demonstrations show the plugin running on Omarchy.
 
 ## Install
 
