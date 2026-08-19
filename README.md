@@ -2,7 +2,7 @@
 
 A standalone Omarchy service plugin that adds videos to the existing wallpaper
 picker without replacing or editing the stock `omarchy.background` plugin.
-The **Style → Background** label, icon, aliases, and theme behavior stay intact.
+It does not modify user configuration during installation or startup.
 
 ## Features
 
@@ -34,8 +34,27 @@ Place videos beside image wallpapers in either location:
 - `~/.config/omarchy/backgrounds/<theme-slug>/`
 - `<theme>/backgrounds/`
 
-Open **Style → Background** or double-click an empty part of the desktop. Video
+Double-click an empty part of the desktop to open the video-aware picker. Video
 entries use a generated frame in the picker and start moving after selection.
+
+### Optional menu integration
+
+The plugin does not change the Omarchy menu automatically. To explicitly make
+**Style → Background** open the video-aware picker, run:
+
+```bash
+~/.config/omarchy/plugins/tenzin.live-wallpaper/live-wallpaper.sh --wire-menu
+```
+
+This command modifies
+`~/.config/omarchy/extensions/omarchy-menu.jsonc`. It preserves the stock
+**Background** name, icon, and aliases while replacing that entry's action.
+
+To remove the menu override:
+
+```bash
+~/.config/omarchy/plugins/tenzin.live-wallpaper/live-wallpaper.sh --unwire-menu
+```
 
 ## Update
 
@@ -65,8 +84,12 @@ bash -n "$PLUGIN_DIR/live-wallpaper.sh"
 The repository root is the plugin folder:
 
 - `manifest.json` declares the standalone service entry point
-- `Service.qml` owns persistent players, IPC, menu wiring, desktop input, and resume
+- `Service.qml` owns persistent players, IPC, desktop input, and resume
 - `live-wallpaper.sh` owns media discovery, `ffmpeg` previews, state, and cleanup
 
+
+## License
+
+Licensed under the MIT License. See [`LICENSE`](LICENSE).
 Runtime state is stored under `~/.local/state/omarchy/live-wallpaper/`; generated
 previews are stored under `~/.cache/omarchy/live-wallpaper/`.
