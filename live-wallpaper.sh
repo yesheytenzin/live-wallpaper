@@ -148,6 +148,7 @@ rm -f "$done_file"
 
 media_args=()
 while IFS= read -r ext; do
+  (( ${#media_args[@]} > 0 )) && media_args+=(-o)
   media_args+=(-iname "*.$ext")
 done <<'EOF'
 jpg
@@ -163,7 +164,7 @@ mov
 m4v
 EOF
 
-find -L "$theme_dir" "$user_dir" -maxdepth 2 -type f "${media_args[@]}" -print0 2>/dev/null \
+find -L "$theme_dir" "$user_dir" -maxdepth 2 -type f \( "${media_args[@]}" \) -print0 2>/dev/null \
   | sort -z \
   | while IFS= read -r -d '' media; do
       if is_video "$media"; then
