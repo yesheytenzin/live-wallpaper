@@ -21,7 +21,7 @@ The plugin needs `mpvpaper` for playback and `ffmpegthumbnailer` for previews.
 Install both dependencies and the plugin with one command:
 
 ```bash
-omarchy pkg add mpvpaper ffmpegthumbnailer && omarchy plugin add https://github.com/yesheytenzin/omarchy-live-wallpaper.git --enable --yes
+omarchy pkg add mpvpaper ffmpegthumbnailer && omarchy plugin add https://github.com/yesheytenzin/live-wallpaper.git --enable --yes
 ```
 
 The plugin runs unsandboxed with normal user permissions. It does not invoke
