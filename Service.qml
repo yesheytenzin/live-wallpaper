@@ -35,6 +35,11 @@ Item {
   }
 
   Process {
+    id: dependencyNoticeProc
+    command: [root.script, "--notify-dependencies"]
+  }
+
+  Process {
     id: changeCheckProc
     command: [root.script, "--stop-if-changed"]
   }
@@ -56,6 +61,7 @@ Item {
   Component.onCompleted: {
     resumeProc.running = true
     wireMenuProc.running = true
+    dependencyNoticeProc.running = true
   }
 
   Variants {

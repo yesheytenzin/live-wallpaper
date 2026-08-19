@@ -155,6 +155,18 @@ install_dependencies() {
   omarchy pkg add ffmpegthumbnailer && omarchy pkg aur add mpvpaper
 }
 
+notify_missing_dependencies() {
+  command -v mpvpaper >/dev/null 2>&1 && command -v ffmpegthumbnailer >/dev/null 2>&1 && return 0
+  local install_command
+  install_command="omarchy-launch-floating-terminal-with-presentation $HOME/.config/omarchy/plugins/$plugin_id/live-wallpaper.sh --install-dependencies"
+  omarchy-notification-send \
+    --exec "$install_command" \
+    --app-name "live-wallpaper" \
+    -g "󰏔" \
+    "Live Wallpaper Setup" \
+    "Click to install mpvpaper and ffmpegthumbnailer."
+}
+
 thumbnail_for() {
   local media="$1" signature hash thumbnail
   signature=$(stat -Lc '%s:%Y' "$media") || return 1
@@ -190,6 +202,10 @@ case "${1:-}" in
   --install-dependencies)
     install_dependencies
     exit $?
+    ;;
+  --notify-dependencies)
+    notify_missing_dependencies
+    exit 0
     ;;
 esac
 
