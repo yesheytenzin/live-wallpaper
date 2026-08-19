@@ -120,6 +120,20 @@ Item {
   }
 
   Process {
+    id: stopChgProc
+    command: [root.home + "/.config/omarchy/plugins/tenzin.live-wallpaper/live-wallpaper.sh", "--stop-if-changed"]
+  }
+
+  Process {
+    id: wireMenuProc
+    command: [root.home + "/.config/omarchy/plugins/tenzin.live-wallpaper/live-wallpaper.sh", "--wire-menu"]
+  }
+
+  function stopLiveIfChanged() {
+    if (!stopChgProc.running) stopChgProc.running = true
+  }
+
+  Process {
     id: themeSwitchProc
     command: ["bash", "-c", "theme=$(omarchy-theme-switcher); [[ -n $theme ]] && omarchy-theme-set \"$theme\" >/dev/null 2>&1 &"]
     onExited: root.refreshBackground()
@@ -142,18 +156,22 @@ Item {
 
     function set(path: string): void {
       root.setBackground(path, false)
+      root.stopLiveIfChanged()
     }
 
     function setInstant(path: string): void {
       root.setBackground(path, true)
+      root.stopLiveIfChanged()
     }
 
     function transition(fromPath: string, path: string): void {
       root.transitionBackground(fromPath, path, path, false, false)
+      root.stopLiveIfChanged()
     }
 
     function themeTransition(fromPath: string, path: string, finalPath: string, colorsB64: string, shellB64: string): void {
       root.transitionBackgroundWithTheme(fromPath, path, finalPath, colorsB64, shellB64)
+      root.stopLiveIfChanged()
     }
   }
 
@@ -184,6 +202,7 @@ Item {
   Component.onCompleted: {
     refreshBackground()
     resumeLiveProc.running = true
+    wireMenuProc.running = true
   }
 
   Variants {
