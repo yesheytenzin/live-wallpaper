@@ -117,6 +117,11 @@ uninstall_plugin_state() {
   rm -rf "$state_dir" "$cache_dir"
 }
 
+install_dependencies() {
+  gum confirm "Install mpvpaper and ffmpegthumbnailer?" || return 0
+  omarchy pkg add mpvpaper ffmpegthumbnailer
+}
+
 thumbnail_for() {
   local media="$1" signature hash thumbnail
   signature=$(stat -Lc '%s:%Y' "$media") || return 1
@@ -148,6 +153,10 @@ case "${1:-}" in
   --uninstall)
     uninstall_plugin_state
     exit 0
+    ;;
+  --install-dependencies)
+    install_dependencies
+    exit $?
     ;;
 esac
 

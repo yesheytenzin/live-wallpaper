@@ -14,18 +14,25 @@ The **Style → Background** label, icon, aliases, and theme behavior stay intac
 - Stops playback when a static wallpaper or another theme is selected
 - Resumes the selected video after the Omarchy shell restarts
 - Preserves desktop double-click behavior through a transparent input layer
+- Shows a setup icon in the bar only while required packages are missing
 
 ## Install
 
-The plugin needs `mpvpaper` for playback and `ffmpegthumbnailer` for previews.
-Install both dependencies and the plugin with one command:
+Install and enable the plugin with the native Omarchy command:
 
 ```bash
-omarchy pkg add mpvpaper ffmpegthumbnailer && omarchy plugin add https://github.com/yesheytenzin/live-wallpaper.git --enable --yes
+omarchy plugin add https://github.com/yesheytenzin/live-wallpaper.git --enable --yes
 ```
 
+The plugin needs `mpvpaper` for playback and `ffmpegthumbnailer` for previews.
+If either command is missing, a package icon appears in the right side of the
+bar. Click it to open a visible terminal running
+`omarchy pkg add mpvpaper ffmpegthumbnailer`; review and confirm the package
+manager prompt there. The icon disappears when both dependencies are ready.
+
 The plugin runs unsandboxed with normal user permissions. It does not invoke
-`sudo`, start another Quickshell process, or install anything by itself.
+`sudo`, start another Quickshell process, or install packages without a user
+click in an interactive terminal.
 
 ## Use
 
@@ -60,14 +67,16 @@ by other applications. Remove them separately only if they are no longer needed.
 ```bash
 PLUGIN_DIR="$HOME/.config/omarchy/plugins/tenzin.live-wallpaper"
 omarchy plugin validate "$PLUGIN_DIR"
-qmllint -I "${OMARCHY_PATH:-/usr/share/omarchy}/shell" "$PLUGIN_DIR/Service.qml"
+qmllint -I "${OMARCHY_PATH:-/usr/share/omarchy}/shell" \
+  "$PLUGIN_DIR/Service.qml" "$PLUGIN_DIR/BarWidget.qml"
 bash -n "$PLUGIN_DIR/live-wallpaper.sh"
 ```
 
 The repository root is the plugin folder:
 
-- `manifest.json` declares the standalone `service` entry point
+- `manifest.json` declares the standalone service and bar-widget entry points
 - `Service.qml` owns menu wiring, desktop double-click input, resume, and change detection
+- `BarWidget.qml` offers dependency installation only while packages are missing
 - `live-wallpaper.sh` owns media discovery, previews, playback, state, and cleanup
 
 Runtime state is stored under `~/.local/state/omarchy/live-wallpaper/`; generated
