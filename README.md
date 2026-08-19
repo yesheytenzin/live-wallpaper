@@ -75,12 +75,21 @@ omarchy plugin update tenzin.live-wallpaper --yes
 
 ## Remove
 
-Run cleanup before removing the plugin. This stops playback, restores the last
-static wallpaper, removes generated state/cache, and restores the stock
-**Style → Background** action:
+Standard removal unloads the service and automatically removes its
+**Style → Background** integration before deleting the plugin:
 
 ```bash
-~/.config/omarchy/plugins/tenzin.live-wallpaper/live-wallpaper.sh --uninstall && omarchy plugin remove tenzin.live-wallpaper --yes
+omarchy plugin remove tenzin.live-wallpaper --yes
+```
+
+The generated state and thumbnail cache are intentionally retained so a later
+reinstall can resume the previous selection. For complete removal, run cleanup
+first. This stops playback, restores the last static wallpaper, removes all
+generated state/cache, and restores the stock Background action:
+
+```bash
+~/.config/omarchy/plugins/tenzin.live-wallpaper/live-wallpaper.sh --uninstall
+omarchy plugin remove tenzin.live-wallpaper --yes
 ```
 
 ## Development
