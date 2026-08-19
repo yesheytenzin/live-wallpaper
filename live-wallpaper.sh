@@ -9,6 +9,7 @@ readonly video_state="$state_dir/video"
 readonly poster_state="$state_dir/poster"
 readonly expected_state="$state_dir/expected"
 readonly pid_state="$state_dir/pid"
+readonly mpv_options="no-audio loop panscan=1.0"
 
 mkdir -p "$state_dir" "$cache_dir"
 
@@ -54,13 +55,13 @@ start_live_wallpaper() {
   stop_live_wallpaper
   monitors=$(hyprctl monitors -j 2>/dev/null | jq -r '.[].name' 2>/dev/null || true)
   if [[ -z $monitors ]]; then
-    mpvpaper -p -o "no-audio loop panscan=1.0" '*' "$video" >/dev/null 2>&1 &
+    mpvpaper -p -o "$mpv_options" '*' "$video" >/dev/null 2>&1 &
     printf '%s\n' "$!" >>"$pid_state"
     return
   fi
   while IFS= read -r monitor; do
     [[ -n $monitor ]] || continue
-    mpvpaper -p -o "no-audio loop panscan=1.0" "$monitor" "$video" >/dev/null 2>&1 &
+    mpvpaper -p -o "$mpv_options" "$monitor" "$video" >/dev/null 2>&1 &
     printf '%s\n' "$!" >>"$pid_state"
   done <<<"$monitors"
 }
@@ -197,8 +198,12 @@ if is_video "$wallpaper"; then
   printf '%s\n' "$wallpaper" >"$video_state"
   printf '%s\n' "$poster" >"$poster_state"
   printf '%s\n' "$poster" >"$expected_state"
-  omarchy theme bg set "$poster"
   start_live_wallpaper "$wallpaper"
+  if ! omarchy theme bg set "$poster"; then
+    clear_live_wallpaper_state
+    omarchy-notification-send "Could not set video wallpaper" -t 2000
+    exit 1
+  fi
 else
   clear_live_wallpaper_state
   omarchy theme bg set "$wallpaper"
