@@ -104,6 +104,19 @@ ensure_menu_override() {
   omarchy menu refresh >/dev/null 2>&1 || true
 }
 
+unwire_menu_override() {
+  local file="$HOME/.config/omarchy/extensions/omarchy-menu.jsonc"
+  [[ -f $file ]] || return 0
+  sed -i -E '\|^[[:space:]]*"style\.background".*tenzin\.live-wallpaper/live-wallpaper\.sh.*$|d' "$file"
+  omarchy menu refresh >/dev/null 2>&1 || true
+}
+
+uninstall_plugin_state() {
+  clear_live_wallpaper_state
+  unwire_menu_override
+  rm -rf "$state_dir" "$cache_dir"
+}
+
 thumbnail_for() {
   local media="$1" signature hash thumbnail
   signature=$(stat -Lc '%s:%Y' "$media") || return 1
@@ -130,6 +143,10 @@ case "${1:-}" in
     ;;
   --wire-menu)
     ensure_menu_override
+    exit 0
+    ;;
+  --uninstall)
+    uninstall_plugin_state
     exit 0
     ;;
 esac

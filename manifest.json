@@ -2,16 +2,13 @@
   "schemaVersion": 1,
   "id": "tenzin.live-wallpaper",
   "name": "Live Wallpaper",
-  "version": "1.1.2",
+  "version": "2.0.0",
   "author": "tenzin",
-  "description": "Omarchy background picker with image and video wallpaper support",
+  "description": "Adds video support to Omarchy's wallpaper picker without replacing the stock background service",
   "kinds": [
     "service"
   ],
   "entryPoints": {
-    "service": "Background.qml"
-  },
-  "omarchy": {
-    "clonedFrom": "omarchy.background"
+    "service": "Service.qml"
   }
 }
