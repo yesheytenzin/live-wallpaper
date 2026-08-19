@@ -1,9 +1,23 @@
 # Omarchy Live Wallpaper
 
-A standalone Omarchy service plugin that adds videos to the existing wallpaper
-picker without replacing or editing the stock `omarchy.background` plugin.
-When enabled, it integrates the video-aware picker with Omarchy's existing
-**Style → Background** entry.
+Play fast, muted, looping video wallpapers through Omarchy's familiar
+**Style → Background** picker. The plugin keeps the stock background service
+and adds video support without starting another Quickshell process.
+
+## Quick start
+
+1. Copy an MP4, MKV, WebM, MOV, or M4V file into your current theme's folder:
+
+   ```text
+   ~/.config/omarchy/backgrounds/<theme-name>/
+   ```
+
+2. Open **Style → Background**.
+3. Select the video's generated preview.
+
+Playback starts automatically with no shell restart. To stop the video, open
+the picker again and select a normal image. You can also double-click an empty
+part of the desktop to open the picker.
 
 ## Features
 

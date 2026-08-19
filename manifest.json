@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "id": "tenzin.live-wallpaper",
   "name": "Live Wallpaper",
-  "version": "3.0.3",
+  "version": "3.0.4",
   "author": "tenzin",
-  "description": "Adds fast Qt Multimedia video support to Omarchy's wallpaper picker",
+  "description": "Add seamless video wallpapers by dropping a video into the current theme's background folder, then selecting it in Style > Background.",
   "kinds": [
     "service"
   ],
