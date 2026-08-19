@@ -2,22 +2,13 @@
   "schemaVersion": 1,
   "id": "tenzin.live-wallpaper",
   "name": "Live Wallpaper",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "author": "tenzin",
   "description": "Adds video support to Omarchy's wallpaper picker without replacing the stock background service",
   "kinds": [
-    "service",
-    "bar-widget"
+    "service"
   ],
   "entryPoints": {
-    "service": "Service.qml",
-    "barWidget": "BarWidget.qml"
-  },
-  "barWidget": {
-    "displayName": "Live Wallpaper Setup",
-    "description": "Installs missing video wallpaper dependencies",
-    "category": "System",
-    "allowMultiple": false,
-    "defaultSection": "right"
+    "service": "Service.qml"
   }
 }
