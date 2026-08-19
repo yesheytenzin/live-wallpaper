@@ -2,7 +2,8 @@
 
 A standalone Omarchy service plugin that adds videos to the existing wallpaper
 picker without replacing or editing the stock `omarchy.background` plugin.
-It does not modify user configuration during installation or startup.
+When enabled, it integrates the video-aware picker with Omarchy's existing
+**Style → Background** entry.
 
 ## Features
 
@@ -50,23 +51,17 @@ Place videos beside image wallpapers in either location:
 - `~/.config/omarchy/backgrounds/<theme-slug>/`
 - `<theme>/backgrounds/`
 
-Double-click an empty part of the desktop to open the video-aware picker. Video
+Open **Style → Background** or double-click an empty part of the desktop. Video
 entries use a generated frame in the picker and start moving after selection.
 
-### Optional menu integration
+### Menu integration
 
-The plugin does not change the Omarchy menu automatically. To explicitly make
-**Style → Background** open the video-aware picker, run:
+Enabling the plugin updates the `style.background` action in
+`~/.config/omarchy/extensions/omarchy-menu.jsonc`. The stock **Background**
+name, icon, and aliases are preserved; only its picker action changes.
 
-```bash
-~/.config/omarchy/plugins/tenzin.live-wallpaper/live-wallpaper.sh --wire-menu
-```
-
-This command modifies
-`~/.config/omarchy/extensions/omarchy-menu.jsonc`. It preserves the stock
-**Background** name, icon, and aliases while replacing that entry's action.
-
-To remove the menu override:
+Disabling or removing the plugin through Omarchy unloads the service and removes
+the menu override. It can also be removed manually without disabling playback:
 
 ```bash
 ~/.config/omarchy/plugins/tenzin.live-wallpaper/live-wallpaper.sh --unwire-menu
