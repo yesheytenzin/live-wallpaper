@@ -37,7 +37,7 @@ Both demonstrations show the plugin running on Omarchy.
 ## Install
 
 ```bash
-omarchy plugin add https://github.com/yesheytenzin/live-wallpaper.git --enable --yes
+omarchy plugin add https://github.com/yesheytenzin/live-wallpaper.git --enable
 ```
 
 No additional packages or privileged installation steps are required. Playback
@@ -70,7 +70,7 @@ the menu override. It can also be removed manually without disabling playback:
 ## Update
 
 ```bash
-omarchy plugin update tenzin.live-wallpaper --yes
+omarchy plugin update tenzin.live-wallpaper
 ```
 
 ## Remove
@@ -79,7 +79,7 @@ Standard removal unloads the service and automatically removes its
 **Style → Background** integration before deleting the plugin:
 
 ```bash
-omarchy plugin remove tenzin.live-wallpaper --yes
+omarchy plugin remove tenzin.live-wallpaper
 ```
 
 The generated state and thumbnail cache are intentionally retained so a later
@@ -89,7 +89,7 @@ generated state/cache, and restores the stock Background action:
 
 ```bash
 ~/.config/omarchy/plugins/tenzin.live-wallpaper/live-wallpaper.sh --uninstall
-omarchy plugin remove tenzin.live-wallpaper --yes
+omarchy plugin remove tenzin.live-wallpaper
 ```
 
 ## Development
