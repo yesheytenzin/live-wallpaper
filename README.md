@@ -27,8 +27,9 @@ omarchy plugin add https://github.com/yesheytenzin/live-wallpaper.git --enable -
 The plugin needs `mpvpaper` for playback and `ffmpegthumbnailer` for previews.
 If either command is missing, a package icon appears in the right side of the
 bar. Click it to open a visible terminal running
-`omarchy pkg add mpvpaper ffmpegthumbnailer`; review and confirm the package
-manager prompt there. The icon disappears when both dependencies are ready.
+`omarchy pkg add ffmpegthumbnailer` followed by
+`omarchy pkg aur add mpvpaper`; review and confirm the package manager prompt
+there. The icon disappears when both dependencies are ready.
 
 The plugin runs unsandboxed with normal user permissions. It does not invoke
 `sudo`, start another Quickshell process, or install packages without a user

@@ -8,6 +8,7 @@ readonly cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/omarchy/live-wallpaper"
 readonly video_state="$state_dir/video"
 readonly poster_state="$state_dir/poster"
 readonly expected_state="$state_dir/expected"
+readonly fallback_state="$state_dir/fallback"
 readonly pid_state="$state_dir/pid"
 readonly mpv_options="no-audio loop panscan=1.0"
 
@@ -47,7 +48,39 @@ stop_live_wallpaper() {
 
 clear_live_wallpaper_state() {
   stop_live_wallpaper
-  rm -f "$video_state" "$poster_state" "$expected_state"
+  rm -f "$video_state" "$poster_state" "$expected_state" "$fallback_state"
+}
+
+first_static_background() {
+  local theme theme_dir user_dir
+  theme=$(cat "$HOME/.local/state/omarchy/current/theme.name" 2>/dev/null)
+  theme_dir="$HOME/.local/state/omarchy/current/theme/backgrounds"
+  user_dir="$HOME/.config/omarchy/backgrounds/$theme"
+  find -L "$theme_dir" "$user_dir" -maxdepth 2 -type f \
+    \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.gif' \
+       -o -iname '*.bmp' -o -iname '*.webp' \) -print -quit 2>/dev/null
+}
+
+remember_static_background() {
+  [[ -s $fallback_state && -f $(<"$fallback_state") ]] && return 0
+  local fallback="$current_background"
+  if [[ -z $fallback || ! -f $fallback || $fallback == "$cache_dir/"* ]]; then
+    fallback=$(first_static_background)
+  fi
+  [[ -n $fallback && -f $fallback ]] && printf '%s\n' "$fallback" >"$fallback_state"
+}
+
+restore_static_background() {
+  local fallback=""
+  stop_live_wallpaper
+  [[ -s $fallback_state ]] && fallback=$(<"$fallback_state")
+  if [[ -z $fallback || ! -f $fallback ]]; then
+    fallback=$(first_static_background)
+  fi
+  if [[ -n $fallback && -f $fallback ]]; then
+    omarchy theme bg set "$fallback" || true
+  fi
+  rm -f "$video_state" "$poster_state" "$expected_state" "$fallback_state"
 }
 
 start_live_wallpaper() {
@@ -112,14 +145,14 @@ unwire_menu_override() {
 }
 
 uninstall_plugin_state() {
-  clear_live_wallpaper_state
+  restore_static_background
   unwire_menu_override
   rm -rf "$state_dir" "$cache_dir"
 }
 
 install_dependencies() {
   gum confirm "Install mpvpaper and ffmpegthumbnailer?" || return 0
-  omarchy pkg add mpvpaper ffmpegthumbnailer
+  omarchy pkg add ffmpegthumbnailer && omarchy pkg aur add mpvpaper
 }
 
 thumbnail_for() {
@@ -221,6 +254,7 @@ if is_video "$wallpaper"; then
     omarchy-notification-send "Could not read video file" -t 2000
     exit 1
   }
+  remember_static_background
   printf '%s\n' "$wallpaper" >"$video_state"
   printf '%s\n' "$poster" >"$poster_state"
   printf '%s\n' "$poster" >"$expected_state"
