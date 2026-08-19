@@ -15,19 +15,17 @@ used for the lock screen, transitions, and the shell background layer.
 - Selecting a video sets its generated poster as the static fallback
 - Selecting an image stops the live wallpaper and switches back to static
 - Live wallpaper resumes automatically after `omarchy-shell` restarts
-- Also reachable via **Style → Background** in the Omarchy menu
-  (replaces the default background action)
+- Uses Omarchy's plugin replacement lifecycle for `omarchy.background`
 
 ## One-command installation
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yesheytenzin/omarchy-live-wallpaper/main/install.sh | bash
+omarchy pkg add mpvpaper ffmpegthumbnailer && omarchy plugin add https://github.com/yesheytenzin/omarchy-live-wallpaper.git --enable --yes
 ```
 
-The installer handles everything: it installs `mpvpaper` and
-`ffmpegthumbnailer`, installs or updates the plugin, disables the conflicting
-stock background service, enables this plugin, and connects the normal
-**Style → Background** menu entry to the video-aware picker.
+This installs both dependencies and enables the plugin. Omarchy automatically
+disables the stock background service because this plugin declares it as the
+service it replaces.
 
 The plugin id is `tenzin.live-wallpaper`.
 
@@ -38,12 +36,10 @@ Put your videos anywhere the background picker scans:
 - `~/.config/omarchy/backgrounds/<theme-slug>/` (user backgrounds)
 - `<theme>/backgrounds/` (theme backgrounds, incl. a `live/` subfolder)
 
-Open the wallpaper picker:
+Double-click the desktop to open the image and video wallpaper picker.
 
-- Double-click the desktop, or
-- Omarchy menu → **Style → Background**
-
-Then just choose an image or a video. Done.
+The regular **Style → Background** item remains unchanged and continues to use
+Omarchy's stock image-only picker.
 
 ## How it works
 
@@ -52,7 +48,6 @@ Then just choose an image or a video. Done.
 | `manifest.json` | Plugin manifest (`tenzin.live-wallpaper`, shell service) |
 | `Background.qml` | Cloned `omarchy.background` service; wires the picker and resume logic |
 | `live-wallpaper.sh` | Collects images + videos, generates video posters/thumbnails, starts/stops `mpvpaper` |
-| `install.sh` | Installs dependencies, configures Omarchy, and installs or updates the plugin |
 
 State lives in `~/.local/state/omarchy/live-wallpaper/` (selected video, PID)
 and generated posters/thumbnails in `~/.cache/omarchy/live-wallpaper/`.

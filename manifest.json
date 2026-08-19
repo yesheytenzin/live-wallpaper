@@ -10,5 +10,8 @@
   ],
   "entryPoints": {
     "service": "Background.qml"
+  },
+  "omarchy": {
+    "clonedFrom": "omarchy.background"
   }
 }
