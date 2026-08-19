@@ -17,6 +17,13 @@ It does not modify user configuration during installation or startup.
 - Resumes the selected video after the Omarchy shell restarts
 - Preserves desktop double-click behavior through the video/input surface
 
+## Demo videos
+
+- [Select and apply a video wallpaper](docs/assets/select-video-wallpaper.mp4)
+- [Add wallpaper files and select a video](docs/assets/add-and-select-video-wallpaper.mp4)
+
+Both demonstrations show the plugin running on Omarchy at 1080p.
+
 ## Install
 
 ```bash
