@@ -52,6 +52,11 @@ Item {
   }
 
   Process {
+    id: wireMenuProc
+    command: [root.script, "--wire-menu"]
+  }
+
+  Process {
     id: changeCheckProc
     command: [root.script, "--stop-if-changed"]
   }
@@ -84,7 +89,12 @@ Item {
     }
   }
 
-  Component.onCompleted: resumeProc.running = true
+  Component.onCompleted: {
+    wireMenuProc.running = true
+    resumeProc.running = true
+  }
+
+  Component.onDestruction: Quickshell.execDetached([root.script, "--unwire-menu"])
 
   Variants {
     model: Quickshell.screens
