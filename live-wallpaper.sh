@@ -114,15 +114,16 @@ stop_if_changed() {
 ensure_menu_override() {
   local file="$HOME/.config/omarchy/extensions/omarchy-menu.jsonc"
   local action="~/.config/omarchy/plugins/$plugin_id/live-wallpaper.sh"
+  local entry="{\"icon\":\"\",\"label\":\"Background\",\"aliases\":[\"background\",\"wallpaper\"],\"action\":\"$action\"}"
   mkdir -p "$(dirname "$file")"
   if [[ ! -f $file ]]; then
-    printf '{\n  "style.background": {"action":"%s"}\n}\n' "$action" >"$file"
+    printf '{\n  "style.background": %s\n}\n' "$entry" >"$file"
   elif grep -qE '^[[:space:]]*"style\.background"[[:space:]]*:' "$file"; then
     sed -i -E \
-      "s|^([[:space:]]*\"style\.background\"[[:space:]]*:[[:space:]]*).*$|\1{\"action\":\"$action\"},|" \
+      "s|^([[:space:]]*\"style\.background\"[[:space:]]*:[[:space:]]*).*$|\1$entry,|" \
       "$file"
   else
-    sed -i "0,/^[[:space:]]*{/a\  \"style.background\": {\"action\":\"$action\"}," "$file"
+    sed -i "0,/^[[:space:]]*{/a\  \"style.background\": $entry," "$file"
   fi
   omarchy menu refresh >/dev/null 2>&1 || true
 }
