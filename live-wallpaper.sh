@@ -176,6 +176,10 @@ case "${1:-}" in
     ensure_menu_override
     exit 0
     ;;
+  --unwire-menu)
+    unwire_menu_override
+    exit 0
+    ;;
   --uninstall)
     uninstall_plugin_state
     exit 0
@@ -256,5 +260,3 @@ else
   clear_live_wallpaper_state
   omarchy theme bg set "$wallpaper"
 fi
-
-ensure_menu_override
