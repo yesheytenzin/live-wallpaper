@@ -87,9 +87,9 @@ The repository root is the plugin folder:
 - `Service.qml` owns persistent players, IPC, desktop input, and resume
 - `live-wallpaper.sh` owns media discovery, `ffmpeg` previews, state, and cleanup
 
+Runtime state is stored under `~/.local/state/omarchy/live-wallpaper/`; generated
+previews are stored under `~/.cache/omarchy/live-wallpaper/`.
 
 ## License
 
 Licensed under the MIT License. See [`LICENSE`](LICENSE).
-Runtime state is stored under `~/.local/state/omarchy/live-wallpaper/`; generated
-previews are stored under `~/.cache/omarchy/live-wallpaper/`.
