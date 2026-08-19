@@ -18,23 +18,18 @@ used for the lock screen, transitions, and the shell background layer.
 - Also reachable via **Style → Background** in the Omarchy menu
   (replaces the default background action)
 
-## Requirements
+## One-command installation
 
 ```bash
-omarchy pkg add mpvpaper ffmpegthumbnailer
+curl -fsSL https://raw.githubusercontent.com/yesheytenzin/omarchy-live-wallpaper/main/install.sh | bash
 ```
 
-## Installation
-
-```bash
-omarchy plugin add https://github.com/yesheytenzin/omarchy-live-wallpaper.git --yes
-```
+The installer handles everything: it installs `mpvpaper` and
+`ffmpegthumbnailer`, installs or updates the plugin, disables the conflicting
+stock background service, enables this plugin, and connects the normal
+**Style → Background** menu entry to the video-aware picker.
 
 The plugin id is `tenzin.live-wallpaper`.
-
-> For Omarchy versions where the stock `omarchy.background` plugin is also
-> present, keep it disabled so the two background services don't fight:
-> `omarchy plugin disable omarchy.background`
 
 ## Usage
 
@@ -50,15 +45,6 @@ Open the wallpaper picker:
 
 Then just choose an image or a video. Done.
 
-### Optional: route the menu action to the live picker
-
-If the Style → Background menu entry still opens the stock image-only picker,
-override it in `~/.config/omarchy/extensions/omarchy-menu.jsonc`:
-
-```jsonc
-"style.background": {"action":"~/.config/omarchy/plugins/tenzin.live-wallpaper/live-wallpaper.sh"}
-```
-
 ## How it works
 
 | Piece | Role |
@@ -66,6 +52,7 @@ override it in `~/.config/omarchy/extensions/omarchy-menu.jsonc`:
 | `manifest.json` | Plugin manifest (`tenzin.live-wallpaper`, shell service) |
 | `Background.qml` | Cloned `omarchy.background` service; wires the picker and resume logic |
 | `live-wallpaper.sh` | Collects images + videos, generates video posters/thumbnails, starts/stops `mpvpaper` |
+| `install.sh` | Installs dependencies, configures Omarchy, and installs or updates the plugin |
 
 State lives in `~/.local/state/omarchy/live-wallpaper/` (selected video, PID)
 and generated posters/thumbnails in `~/.cache/omarchy/live-wallpaper/`.
