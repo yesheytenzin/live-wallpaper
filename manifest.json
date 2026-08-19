@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "id": "tenzin.live-wallpaper",
   "name": "Live Wallpaper",
-  "version": "2.2.0",
+  "version": "3.0.0",
   "author": "tenzin",
-  "description": "Adds video support to Omarchy's wallpaper picker without replacing the stock background service",
+  "description": "Adds fast Qt Multimedia video support to Omarchy's wallpaper picker",
   "kinds": [
     "service"
   ],
