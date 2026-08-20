@@ -11,8 +11,14 @@ readonly poster_state="$state_dir/poster"
 readonly expected_state="$state_dir/expected"
 readonly fallback_state="$state_dir/fallback"
 readonly legacy_pid_state="$state_dir/pid"
+readonly cleanup_helper="$state_dir/cleanup"
 
 mkdir -p "$state_dir" "$cache_dir"
+
+prepare_cleanup_helper() {
+  cp -f "$plugin_dir/live-wallpaper.sh" "$cleanup_helper"
+  chmod +x "$cleanup_helper"
+}
 
 is_video() {
   local ext
@@ -184,6 +190,7 @@ thumbnail_for() {
 
 case "${1:-}" in
   --resume)
+    prepare_cleanup_helper || true
     resume_live_wallpaper
     exit $?
     ;;
