@@ -142,7 +142,16 @@ Item {
         id: videoOutput
         anchors.fill: parent
         fillMode: VideoOutput.PreserveAspectCrop
-        visible: root.videoPath !== "" && panel.frameReady
+        visible: root.videoPath !== ""
+        opacity: panel.frameReady ? 1 : 0
+
+        Behavior on opacity {
+          enabled: panel.frameReady
+          NumberAnimation {
+            duration: 420
+            easing.type: Easing.InOutCubic
+          }
+        }
       }
 
       Connections {
