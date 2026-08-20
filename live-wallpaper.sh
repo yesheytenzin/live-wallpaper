@@ -162,13 +162,15 @@ uninstall_plugin_state() {
 }
 
 cleanup_after_unload() {
-  local enabled
+  local enabled=""
 
-  sleep 2
-  if [[ ! -d $plugin_dir ]]; then
-    uninstall_plugin_state
-    return 0
-  fi
+  for _ in {1..200}; do
+    if [[ ! -d $plugin_dir ]]; then
+      uninstall_plugin_state
+      return 0
+    fi
+    sleep 0.01
+  done
 
   enabled=$(omarchy plugin list --json 2>/dev/null \
     | jq -r --arg id "$plugin_id" '.[] | select(.id == $id) | .enabled' 2>/dev/null || true)
