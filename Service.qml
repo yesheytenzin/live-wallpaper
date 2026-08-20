@@ -4,6 +4,8 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
+import QtQuick.Effects
+import QtQuick.Shapes
 import QtMultimedia
 import qs.Commons
 
@@ -111,9 +113,12 @@ Item {
       id: panel
       required property var modelData
       property bool frameReady: false
+      property real revealProgress: 0
 
       function syncPlayer() {
+        revealAnimation.stop()
         frameReady = false
+        revealProgress = 0
         player.stop()
         if (root.videoPath === "") {
           player.source = ""
@@ -138,20 +143,62 @@ Item {
         loops: MediaPlayer.Infinite
       }
 
-      VideoOutput {
-        id: videoOutput
+      Item {
+        id: videoLayer
         anchors.fill: parent
-        fillMode: VideoOutput.PreserveAspectCrop
-        visible: root.videoPath !== ""
-        opacity: panel.frameReady ? 1 : 0
+        visible: root.videoPath !== "" && panel.frameReady
+        layer.enabled: visible && panel.revealProgress < 1
+        layer.smooth: true
+        layer.effect: MultiEffect {
+          maskEnabled: true
+          maskSource: revealMask
+          maskThresholdMin: 0.5
+          maskSpreadAtMin: 0.02
+        }
 
-        Behavior on opacity {
-          enabled: panel.frameReady
-          NumberAnimation {
-            duration: 420
-            easing.type: Easing.InOutCubic
+        VideoOutput {
+          id: videoOutput
+          anchors.fill: parent
+          fillMode: VideoOutput.PreserveAspectCrop
+        }
+      }
+
+      Item {
+        id: revealMask
+        anchors.fill: parent
+        visible: false
+        layer.enabled: true
+
+        readonly property real slant: -0.18
+        readonly property real centerTop: width / 2 - slant * height / 2
+        readonly property real centerBottom: width / 2 + slant * height / 2
+        readonly property real reach: width / 2 + Math.abs(slant) * height / 2 + 4
+        readonly property real spread: reach * panel.revealProgress
+
+        Shape {
+          anchors.fill: parent
+          antialiasing: true
+          preferredRendererType: Shape.CurveRenderer
+          ShapePath {
+            fillColor: "white"
+            strokeColor: "transparent"
+            startX: revealMask.centerTop - revealMask.spread; startY: 0
+            PathLine { x: revealMask.centerTop + revealMask.spread; y: 0 }
+            PathLine { x: revealMask.centerBottom + revealMask.spread; y: revealMask.height }
+            PathLine { x: revealMask.centerBottom - revealMask.spread; y: revealMask.height }
+            PathLine { x: revealMask.centerTop - revealMask.spread; y: 0 }
           }
         }
+      }
+
+      NumberAnimation {
+        id: revealAnimation
+        target: panel
+        property: "revealProgress"
+        from: 0
+        to: 1
+        duration: 420
+        easing.type: Easing.InOutCubic
       }
 
       Connections {
@@ -162,9 +209,12 @@ Item {
       Connections {
         target: videoOutput.videoSink
         function onVideoFrameChanged() {
-          if (root.videoPath !== "") {
+          if (root.videoPath !== "" && !panel.frameReady) {
             panel.frameReady = true
             root.markFrameReady(panel.modelData.name)
+            Qt.callLater(function() {
+              if (root.videoPath !== "" && panel.frameReady) revealAnimation.restart()
+            })
           }
         }
       }
