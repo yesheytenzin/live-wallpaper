@@ -147,7 +147,8 @@ Item {
         id: videoLayer
         anchors.fill: parent
         visible: root.videoPath !== "" && panel.frameReady
-        layer.enabled: visible && panel.revealProgress < 1
+        // Prepare the masked layer before exposing the first decoded frame.
+        layer.enabled: root.videoPath !== "" && panel.revealProgress < 1
         layer.smooth: true
         layer.effect: MultiEffect {
           maskEnabled: true
