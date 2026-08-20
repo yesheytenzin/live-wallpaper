@@ -153,12 +153,12 @@ uninstall_plugin_state() {
   fi
 
   stop_video
-  unwire_menu_override
-  rm -rf "$state_dir" "$cache_dir"
-
   if [[ -n $fallback && -f $fallback ]]; then
     omarchy theme bg set "$fallback" || true
   fi
+
+  unwire_menu_override
+  rm -rf "$state_dir" "$cache_dir"
 }
 
 cleanup_after_unload() {
