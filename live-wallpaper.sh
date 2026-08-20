@@ -6,6 +6,7 @@ readonly plugin_id="tenzin.live-wallpaper"
 readonly plugin_dir="$HOME/.config/omarchy/plugins/$plugin_id"
 readonly state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/live-wallpaper"
 readonly cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/omarchy/live-wallpaper"
+readonly stock_thumbnail_dir="${XDG_CACHE_HOME:-$HOME/.cache}/omarchy/image-selector"
 readonly video_state="$state_dir/video"
 readonly poster_state="$state_dir/poster"
 readonly expected_state="$state_dir/expected"
@@ -26,7 +27,7 @@ prepare_cleanup_helper() {
 is_video() {
   local ext
   ext="${1##*.}"
-  ext=$(printf '%s' "$ext" | tr '[:upper:]' '[:lower:]')
+  ext="${ext,,}"
   case ",$ext," in
     ,mp4,|,mkv,|,webm,|,mov,|,m4v,) return 0 ;;
   esac
@@ -184,14 +185,15 @@ cleanup_after_unload() {
 thumbnail_for() {
   local media="$1" signature hash thumbnail tmp
   signature=$(stat -Lc '%s:%Y' "$media") || return 1
-  hash=$(printf 'ffmpeg-v1:%s:%s' "$media" "$signature" | md5sum | cut -d ' ' -f 1)
+  hash=$(printf 'ffmpeg-v2:%s:%s' "$media" "$signature" | md5sum)
+  hash="${hash%% *}"
   thumbnail="$cache_dir/$hash.jpg"
   if [[ ! -f $thumbnail ]]; then
     tmp="$thumbnail.$$.jpg"
-    if ! ffmpeg -nostdin -hide_banner -loglevel error -ss 1 -i "$media" -an \
+    if ! ffmpeg -nostdin -hide_banner -loglevel error -threads 1 -i "$media" -an \
       -frames:v 1 -vf "scale=1536:-2:force_original_aspect_ratio=decrease" -q:v 3 -y "$tmp"; then
       rm -f "$tmp"
-      ffmpeg -nostdin -hide_banner -loglevel error -i "$media" -an \
+      ffmpeg -nostdin -hide_banner -loglevel error -ss 1 -threads 1 -i "$media" -an \
         -frames:v 1 -vf "scale=1536:-2:force_original_aspect_ratio=decrease" -q:v 3 -y "$tmp" || return 1
     fi
     mv -f "$tmp" "$thumbnail"
@@ -202,12 +204,13 @@ thumbnail_for() {
 picker_thumbnail_for() {
   local media="$1" signature hash thumbnail tmp
   signature=$(stat -Lc '%s:%Y' "$media") || return 1
-  hash=$(printf 'picker-v2:%s:%s' "$media" "$signature" | md5sum | cut -d ' ' -f 1)
+  hash=$(printf 'picker-v3:%s:%s' "$media" "$signature" | md5sum)
+  hash="${hash%% *}"
   thumbnail="$cache_dir/$hash.jpg"
   if [[ ! -f $thumbnail ]]; then
     tmp="$thumbnail.$$.jpg"
-    VIPS_CONCURRENCY=1 vipsthumbnail "$media" --size 1024x \
-      --path "$tmp[Q=78,strip]" >/dev/null 2>&1 || {
+    VIPS_CONCURRENCY=1 vipsthumbnail "$media" --size 1536x864 --smartcrop=centre \
+      --path "$tmp[Q=82,strip]" >/dev/null 2>&1 || {
         rm -f "$tmp"
         return 1
       }
@@ -216,14 +219,24 @@ picker_thumbnail_for() {
   printf '%s' "$thumbnail"
 }
 
+stock_thumbnail_for() {
+  local media="$1" signature hash
+  [[ -s $stock_thumbnail_dir/index.tsv ]] || return 1
+  signature=$(stat -Lc '%s:%Y' "$media") || return 1
+  hash=$(awk -F '\t' -v path="$media" -v sig="$signature" \
+    '$1 == path && $2 == sig { print $3; exit }' "$stock_thumbnail_dir/index.tsv")
+  [[ -n $hash && -f $stock_thumbnail_dir/$hash.jpg ]] || return 1
+  printf '%s' "$stock_thumbnail_dir/$hash.jpg"
+}
+
 prewarm_picker_media() {
-  local media="$1" poster
+  local media="$1" thumbnail
   if is_video "$media"; then
-    poster=$(thumbnail_for "$media") || return 1
-    picker_thumbnail_for "$poster" >/dev/null
+    thumbnail=$(thumbnail_for "$media") || return 1
   else
-    picker_thumbnail_for "$media" >/dev/null
+    thumbnail=$(stock_thumbnail_for "$media" || picker_thumbnail_for "$media") || return 1
   fi
+  printf '%s\t%s\n' "$media" "$thumbnail"
 }
 
 case "${1:-}" in
@@ -294,7 +307,7 @@ EOF_EXTS
 
 media_signature=$(
   {
-    printf 'picker-v4\0'
+    printf 'picker-v6\0'
     find -L "$theme_dir" "$user_dir" -maxdepth 2 -type f \( "${media_args[@]}" \) \
       -printf '%p:%s:%T@\0' 2>/dev/null \
       | sort -z
@@ -305,22 +318,11 @@ media_signature=$(
 if [[ -s $rows_cache && -s $rows_signature_state && $(<"$rows_signature_state") == "$media_signature" ]]; then
   cp "$rows_cache" "$rows_file"
 else
-  export cache_dir
-  export -f is_video thumbnail_for picker_thumbnail_for prewarm_picker_media
+  export cache_dir stock_thumbnail_dir
+  export -f is_video thumbnail_for picker_thumbnail_for stock_thumbnail_for prewarm_picker_media
   find -L "$theme_dir" "$user_dir" -maxdepth 2 -type f \( "${media_args[@]}" \) -print0 2>/dev/null \
-    | xargs -0 -r -n 1 -P "$(nproc)" bash -c 'prewarm_picker_media "$1"' _ >/dev/null 2>&1 || true
-
-  find -L "$theme_dir" "$user_dir" -maxdepth 2 -type f \( "${media_args[@]}" \) -print0 2>/dev/null \
-    | sort -z \
-    | while IFS= read -r -d '' media; do
-        if is_video "$media"; then
-          poster=$(thumbnail_for "$media") || continue
-          thumbnail=$(picker_thumbnail_for "$poster") || continue
-        else
-          thumbnail=$(picker_thumbnail_for "$media") || continue
-        fi
-        printf '%s\t%s\n' "$media" "$thumbnail"
-      done >"$rows_file"
+    | xargs -0 -r -n 1 -P "$(nproc)" bash -c 'prewarm_picker_media "$1"' _ 2>/dev/null \
+    | sort >"$rows_file"
   cp "$rows_file" "$rows_cache.tmp.$$"
   mv -f "$rows_cache.tmp.$$" "$rows_cache"
   printf '%s\n' "$media_signature" >"$rows_signature_state.tmp.$$"
