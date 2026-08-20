@@ -11,7 +11,9 @@ Item {
   id: root
 
   readonly property string home: Quickshell.env("HOME")
+  readonly property string stateHome: Quickshell.env("XDG_STATE_HOME") || home + "/.local/state"
   readonly property string script: home + "/.config/omarchy/plugins/tenzin.live-wallpaper/live-wallpaper.sh"
+  readonly property string cleanupHelper: stateHome + "/omarchy/live-wallpaper/cleanup"
   property string videoPath: ""
   property var readyScreens: ({})
 
@@ -94,7 +96,7 @@ Item {
     resumeProc.running = true
   }
 
-  Component.onDestruction: Quickshell.execDetached([root.script, "--cleanup-after-unload"])
+  Component.onDestruction: Quickshell.execDetached([root.cleanupHelper, "--cleanup-after-unload"])
 
   Variants {
     model: Quickshell.screens
