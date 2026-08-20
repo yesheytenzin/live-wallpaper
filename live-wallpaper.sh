@@ -147,7 +147,7 @@ uninstall_plugin_state() {
 
   if [[ -s $video_state || -s $fallback_state ]]; then
     [[ -s $fallback_state ]] && fallback=$(<"$fallback_state")
-    if [[ -z $fallback || ! -f $fallback ]]; then
+    if [[ -z $fallback || ! -f $fallback || $fallback == "$cache_dir/"* ]]; then
       fallback=$(first_static_background)
     fi
   fi
@@ -162,19 +162,16 @@ uninstall_plugin_state() {
 }
 
 cleanup_after_unload() {
-  local enabled=""
+  local enabled
 
-  for _ in {1..30}; do
-    if [[ ! -d $plugin_dir ]]; then
-      uninstall_plugin_state
-      return 0
-    fi
+  sleep 2
+  if [[ ! -d $plugin_dir ]]; then
+    uninstall_plugin_state
+    return 0
+  fi
 
-    enabled=$(omarchy plugin list --json 2>/dev/null \
-      | jq -r --arg id "$plugin_id" '.[] | select(.id == $id) | .enabled' 2>/dev/null || true)
-    [[ $enabled == true ]] && return 0
-    sleep 0.1
-  done
+  enabled=$(omarchy plugin list --json 2>/dev/null \
+    | jq -r --arg id "$plugin_id" '.[] | select(.id == $id) | .enabled' 2>/dev/null || true)
 
   [[ $enabled == false ]] && unwire_menu_override
 }
