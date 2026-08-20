@@ -59,6 +59,11 @@ Item {
   }
 
   Process {
+    id: preparePickerProc
+    command: [root.script, "--prepare-picker"]
+  }
+
+  Process {
     id: changeCheckProc
     command: [root.script, "--stop-if-changed"]
   }
@@ -94,6 +99,7 @@ Item {
   Component.onCompleted: {
     wireMenuProc.running = true
     resumeProc.running = true
+    preparePickerProc.running = true
   }
 
   Component.onDestruction: Quickshell.execDetached([root.cleanupHelper, "--cleanup-after-unload"])

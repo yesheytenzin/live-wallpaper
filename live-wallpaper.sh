@@ -14,6 +14,7 @@ readonly legacy_pid_state="$state_dir/pid"
 readonly cleanup_helper="$state_dir/cleanup"
 readonly rows_cache="$state_dir/picker-rows"
 readonly rows_signature_state="$state_dir/picker-signature"
+prepare_picker=0
 
 mkdir -p "$state_dir" "$cache_dir"
 
@@ -198,6 +199,23 @@ thumbnail_for() {
   printf '%s' "$thumbnail"
 }
 
+picker_thumbnail_for() {
+  local media="$1" signature hash thumbnail tmp
+  signature=$(stat -Lc '%s:%Y' "$media") || return 1
+  hash=$(printf 'picker-v1:%s:%s' "$media" "$signature" | md5sum | cut -d ' ' -f 1)
+  thumbnail="$cache_dir/$hash.jpg"
+  if [[ ! -f $thumbnail ]]; then
+    tmp="$thumbnail.$$.jpg"
+    ffmpeg -nostdin -hide_banner -loglevel error -i "$media" -an \
+      -frames:v 1 -vf "scale=1024:-2:force_original_aspect_ratio=decrease" -q:v 4 -y "$tmp" || {
+        rm -f "$tmp"
+        return 1
+      }
+    mv -f "$tmp" "$thumbnail"
+  fi
+  printf '%s' "$thumbnail"
+}
+
 case "${1:-}" in
   --resume)
     prepare_cleanup_helper || true
@@ -227,6 +245,9 @@ case "${1:-}" in
   --uninstall)
     uninstall_plugin_state
     exit 0
+    ;;
+  --prepare-picker)
+    prepare_picker=1
     ;;
 esac
 
@@ -262,9 +283,12 @@ m4v
 EOF_EXTS
 
 media_signature=$(
-  find -L "$theme_dir" "$user_dir" -maxdepth 2 -type f \( "${media_args[@]}" \) \
-    -printf '%p:%s:%T@\0' 2>/dev/null \
-    | sort -z \
+  {
+    printf 'picker-v2\0'
+    find -L "$theme_dir" "$user_dir" -maxdepth 2 -type f \( "${media_args[@]}" \) \
+      -printf '%p:%s:%T@\0' 2>/dev/null \
+      | sort -z
+  } \
     | md5sum \
     | cut -d ' ' -f 1
 )
@@ -277,7 +301,7 @@ else
         if is_video "$media"; then
           thumbnail=$(thumbnail_for "$media") || continue
         else
-          thumbnail="$media"
+          thumbnail=$(picker_thumbnail_for "$media") || continue
         fi
         printf '%s\t%s\n' "$media" "$thumbnail"
       done >"$rows_file"
@@ -288,17 +312,29 @@ else
 fi
 
 [[ -s $rows_file ]] || {
+  (( prepare_picker )) && exit 0
   omarchy-notification-send "No wallpaper was found for theme" -t 2000
   exit 0
 }
 
+(( prepare_picker )) && exit 0
+
 rows_b64=$(base64 -w 0 <"$rows_file")
+was_playing=0
+if [[ -s $video_state ]]; then
+  was_playing=1
+  stop_video
+fi
 if [[ $(omarchy-shell image-selector open "" "$rows_b64" "$selected" "$selection_file" "$done_file" false false) != ok ]]; then
+  (( was_playing )) && resume_live_wallpaper
   exit 1
 fi
 
-while [[ ! -e $done_file ]]; do sleep 0.01; done
-[[ -s $selection_file ]] || exit 0
+while [[ ! -e $done_file ]]; do sleep 0.05; done
+if [[ ! -s $selection_file ]]; then
+  (( was_playing )) && resume_live_wallpaper
+  exit 0
+fi
 wallpaper=$(<"$selection_file")
 
 if is_video "$wallpaper"; then
