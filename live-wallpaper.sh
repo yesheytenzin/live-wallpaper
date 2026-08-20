@@ -51,8 +51,39 @@ stop_legacy_mpvpaper() {
 
 play_video() {
   local video="$1" transition_ms="${2:-0}"
-  for _ in {1..20}; do
+  local i used_fallback=0
+  for i in {1..10}; do
     if omarchy-shell -q "$plugin_id" play "$video" "$transition_ms" >/dev/null 2>&1; then
+      return 0
+    fi
+    # Fallback for shell still on old signatures (1-arg play or playSimple).
+    if omarchy-shell -q "$plugin_id" play "$video" >/dev/null 2>&1; then
+      used_fallback=1
+      break
+    fi
+    if omarchy-shell -q "$plugin_id" playSimple "$video" >/dev/null 2>&1; then
+      used_fallback=1
+      break
+    fi
+    sleep 0.05
+  done
+  if (( used_fallback )); then
+    # Video is playing via fallback (no smooth transition). Restart once in background
+    # so the next selection uses the new 420ms handoff.
+    (sleep 0.5; omarchy restart shell >/dev/null 2>&1 &)
+    return 0
+  fi
+  # Signature mismatch after update/install - single auto-restart to pick up new IPC.
+  omarchy restart shell >/dev/null 2>&1 &
+  sleep 0.9
+  for i in {1..20}; do
+    if omarchy-shell -q "$plugin_id" play "$video" "$transition_ms" >/dev/null 2>&1; then
+      return 0
+    fi
+    if omarchy-shell -q "$plugin_id" play "$video" >/dev/null 2>&1; then
+      return 0
+    fi
+    if omarchy-shell -q "$plugin_id" playSimple "$video" >/dev/null 2>&1; then
       return 0
     fi
     sleep 0.05

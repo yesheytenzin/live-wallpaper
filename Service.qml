@@ -109,6 +109,7 @@ Item {
     target: "tenzin.live-wallpaper"
 
     function play(path: string, transitionMs: int): void { root.play(path, transitionMs) }
+    function playSimple(path: string): void { root.play(path, 0) }
     function stop(): void { root.stop() }
     function status(): string {
       return JSON.stringify({
