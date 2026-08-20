@@ -143,13 +143,22 @@ unwire_menu_override() {
 }
 
 uninstall_plugin_state() {
+  local fallback=""
+
   if [[ -s $video_state || -s $fallback_state ]]; then
-    restore_static_background
-  else
-    stop_video
+    [[ -s $fallback_state ]] && fallback=$(<"$fallback_state")
+    if [[ -z $fallback || ! -f $fallback ]]; then
+      fallback=$(first_static_background)
+    fi
   fi
+
+  stop_video
   unwire_menu_override
   rm -rf "$state_dir" "$cache_dir"
+
+  if [[ -n $fallback && -f $fallback ]]; then
+    omarchy theme bg set "$fallback" || true
+  fi
 }
 
 cleanup_after_unload() {
