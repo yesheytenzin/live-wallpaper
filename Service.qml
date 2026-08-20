@@ -94,7 +94,7 @@ Item {
     resumeProc.running = true
   }
 
-  Component.onDestruction: Quickshell.execDetached([root.script, "--unwire-menu"])
+  Component.onDestruction: Quickshell.execDetached([root.script, "--cleanup-after-unload"])
 
   Variants {
     model: Quickshell.screens
