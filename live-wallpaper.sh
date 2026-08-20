@@ -12,6 +12,8 @@ readonly expected_state="$state_dir/expected"
 readonly fallback_state="$state_dir/fallback"
 readonly legacy_pid_state="$state_dir/pid"
 readonly cleanup_helper="$state_dir/cleanup"
+readonly rows_cache="$state_dir/picker-rows"
+readonly rows_signature_state="$state_dir/picker-signature"
 
 mkdir -p "$state_dir" "$cache_dir"
 
@@ -259,16 +261,31 @@ mov
 m4v
 EOF_EXTS
 
-find -L "$theme_dir" "$user_dir" -maxdepth 2 -type f \( "${media_args[@]}" \) -print0 2>/dev/null \
-  | sort -z \
-  | while IFS= read -r -d '' media; do
-      if is_video "$media"; then
-        thumbnail=$(thumbnail_for "$media") || continue
-      else
-        thumbnail="$media"
-      fi
-      printf '%s\t%s\n' "$media" "$thumbnail"
-    done >"$rows_file"
+media_signature=$(
+  find -L "$theme_dir" "$user_dir" -maxdepth 2 -type f \( "${media_args[@]}" \) \
+    -printf '%p:%s:%T@\0' 2>/dev/null \
+    | sort -z \
+    | md5sum \
+    | cut -d ' ' -f 1
+)
+if [[ -s $rows_cache && -s $rows_signature_state && $(<"$rows_signature_state") == "$media_signature" ]]; then
+  cp "$rows_cache" "$rows_file"
+else
+  find -L "$theme_dir" "$user_dir" -maxdepth 2 -type f \( "${media_args[@]}" \) -print0 2>/dev/null \
+    | sort -z \
+    | while IFS= read -r -d '' media; do
+        if is_video "$media"; then
+          thumbnail=$(thumbnail_for "$media") || continue
+        else
+          thumbnail="$media"
+        fi
+        printf '%s\t%s\n' "$media" "$thumbnail"
+      done >"$rows_file"
+  cp "$rows_file" "$rows_cache.tmp.$$"
+  mv -f "$rows_cache.tmp.$$" "$rows_cache"
+  printf '%s\n' "$media_signature" >"$rows_signature_state.tmp.$$"
+  mv -f "$rows_signature_state.tmp.$$" "$rows_signature_state"
+fi
 
 [[ -s $rows_file ]] || {
   omarchy-notification-send "No wallpaper was found for theme" -t 2000
