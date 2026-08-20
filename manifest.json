@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "tenzin.live-wallpaper",
   "name": "Live Wallpaper",
-  "version": "3.0.12",
+  "version": "3.0.13",
   "author": "tenzin",
   "description": "Add seamless video wallpapers by dropping a video into the current theme's background folder, then selecting it in Style > Background.",
   "kinds": [

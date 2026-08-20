@@ -284,7 +284,7 @@ EOF_EXTS
 
 media_signature=$(
   {
-    printf 'picker-v2\0'
+    printf 'picker-v3\0'
     find -L "$theme_dir" "$user_dir" -maxdepth 2 -type f \( "${media_args[@]}" \) \
       -printf '%p:%s:%T@\0' 2>/dev/null \
       | sort -z
@@ -299,7 +299,8 @@ else
     | sort -z \
     | while IFS= read -r -d '' media; do
         if is_video "$media"; then
-          thumbnail=$(thumbnail_for "$media") || continue
+          poster=$(thumbnail_for "$media") || continue
+          thumbnail=$(picker_thumbnail_for "$poster") || continue
         else
           thumbnail=$(picker_thumbnail_for "$media") || continue
         fi
