@@ -70,11 +70,11 @@ play_video() {
   if (( used_fallback )); then
     # Video is playing via fallback (no smooth transition). Restart once in background
     # so the next selection uses the new 420ms handoff.
-    (sleep 0.5; omarchy restart shell >/dev/null 2>&1 &)
+    (sleep 0.5; omarchy-shell shell rescanPlugins >/dev/null 2>&1 &)
     return 0
   fi
   # Signature mismatch after update/install - single auto-restart to pick up new IPC.
-  omarchy restart shell >/dev/null 2>&1 &
+  omarchy-shell shell rescanPlugins >/dev/null 2>&1 &
   sleep 0.9
   for i in {1..20}; do
     if omarchy-shell -q "$plugin_id" play "$video" "$transition_ms" >/dev/null 2>&1; then
