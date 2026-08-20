@@ -202,18 +202,28 @@ thumbnail_for() {
 picker_thumbnail_for() {
   local media="$1" signature hash thumbnail tmp
   signature=$(stat -Lc '%s:%Y' "$media") || return 1
-  hash=$(printf 'picker-v1:%s:%s' "$media" "$signature" | md5sum | cut -d ' ' -f 1)
+  hash=$(printf 'picker-v2:%s:%s' "$media" "$signature" | md5sum | cut -d ' ' -f 1)
   thumbnail="$cache_dir/$hash.jpg"
   if [[ ! -f $thumbnail ]]; then
     tmp="$thumbnail.$$.jpg"
-    ffmpeg -nostdin -hide_banner -loglevel error -i "$media" -an \
-      -frames:v 1 -vf "scale=1024:-2:force_original_aspect_ratio=decrease" -q:v 4 -y "$tmp" || {
+    VIPS_CONCURRENCY=1 vipsthumbnail "$media" --size 1024x \
+      --path "$tmp[Q=78,strip]" >/dev/null 2>&1 || {
         rm -f "$tmp"
         return 1
       }
     mv -f "$tmp" "$thumbnail"
   fi
   printf '%s' "$thumbnail"
+}
+
+prewarm_picker_media() {
+  local media="$1" poster
+  if is_video "$media"; then
+    poster=$(thumbnail_for "$media") || return 1
+    picker_thumbnail_for "$poster" >/dev/null
+  else
+    picker_thumbnail_for "$media" >/dev/null
+  fi
 }
 
 case "${1:-}" in
@@ -284,7 +294,7 @@ EOF_EXTS
 
 media_signature=$(
   {
-    printf 'picker-v3\0'
+    printf 'picker-v4\0'
     find -L "$theme_dir" "$user_dir" -maxdepth 2 -type f \( "${media_args[@]}" \) \
       -printf '%p:%s:%T@\0' 2>/dev/null \
       | sort -z
@@ -295,6 +305,11 @@ media_signature=$(
 if [[ -s $rows_cache && -s $rows_signature_state && $(<"$rows_signature_state") == "$media_signature" ]]; then
   cp "$rows_cache" "$rows_file"
 else
+  export cache_dir
+  export -f is_video thumbnail_for picker_thumbnail_for prewarm_picker_media
+  find -L "$theme_dir" "$user_dir" -maxdepth 2 -type f \( "${media_args[@]}" \) -print0 2>/dev/null \
+    | xargs -0 -r -n 1 -P "$(nproc)" bash -c 'prewarm_picker_media "$1"' _ >/dev/null 2>&1 || true
+
   find -L "$theme_dir" "$user_dir" -maxdepth 2 -type f \( "${media_args[@]}" \) -print0 2>/dev/null \
     | sort -z \
     | while IFS= read -r -d '' media; do
@@ -318,9 +333,12 @@ fi
   exit 0
 }
 
-(( prepare_picker )) && exit 0
-
 rows_b64=$(base64 -w 0 <"$rows_file")
+if (( prepare_picker )); then
+  omarchy-shell image-selector preload "$rows_b64" "$selected" false false >/dev/null 2>&1 || true
+  exit 0
+fi
+
 was_playing=0
 if [[ -s $video_state ]]; then
   was_playing=1
