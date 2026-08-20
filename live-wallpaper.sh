@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -u
+set -uo pipefail
 
 readonly plugin_id="tenzin.live-wallpaper"
 readonly plugin_dir="$HOME/.config/omarchy/plugins/$plugin_id"
@@ -15,6 +15,8 @@ readonly legacy_pid_state="$state_dir/pid"
 readonly cleanup_helper="$state_dir/cleanup"
 readonly rows_cache="$state_dir/picker-rows"
 readonly rows_signature_state="$state_dir/picker-signature"
+readonly transition_lock="$state_dir/transition.lock"
+readonly rows_lock="$state_dir/picker.lock"
 prepare_picker=0
 
 mkdir -p "$state_dir" "$cache_dir"
@@ -115,6 +117,8 @@ resume_live_wallpaper() {
 
 stop_if_changed() {
   [[ -s $expected_state ]] || return 0
+  exec 9>"$transition_lock"
+  flock -n 9 || return 0
   local current expected
   current=$(readlink -f "$HOME/.local/state/omarchy/current/background" 2>/dev/null || true)
   expected=$(<"$expected_state")
@@ -318,15 +322,35 @@ media_signature=$(
 if [[ -s $rows_cache && -s $rows_signature_state && $(<"$rows_signature_state") == "$media_signature" ]]; then
   cp "$rows_cache" "$rows_file"
 else
-  export cache_dir stock_thumbnail_dir
-  export -f is_video thumbnail_for picker_thumbnail_for stock_thumbnail_for prewarm_picker_media
-  find -L "$theme_dir" "$user_dir" -maxdepth 2 -type f \( "${media_args[@]}" \) -print0 2>/dev/null \
-    | xargs -0 -r -n 1 -P "$(nproc)" bash -c 'prewarm_picker_media "$1"' _ 2>/dev/null \
-    | sort >"$rows_file"
-  cp "$rows_file" "$rows_cache.tmp.$$"
-  mv -f "$rows_cache.tmp.$$" "$rows_cache"
-  printf '%s\n' "$media_signature" >"$rows_signature_state.tmp.$$"
-  mv -f "$rows_signature_state.tmp.$$" "$rows_signature_state"
+  exec 8>"$rows_lock"
+  if ! flock -n 8; then
+    # A startup prewarm is already rebuilding the rows. Keep picker opens
+    # instant when an older complete cache is available.
+    if [[ -s $rows_cache ]]; then
+      cp "$rows_cache" "$rows_file"
+    else
+      flock 8
+    fi
+  fi
+
+  if [[ ! -s $rows_file ]]; then
+    if [[ -s $rows_cache && -s $rows_signature_state && $(<"$rows_signature_state") == "$media_signature" ]]; then
+      cp "$rows_cache" "$rows_file"
+    else
+      workers=$(nproc)
+      (( workers > 6 )) && workers=6
+      export cache_dir stock_thumbnail_dir
+      export -f is_video thumbnail_for picker_thumbnail_for stock_thumbnail_for prewarm_picker_media
+      if find -L "$theme_dir" "$user_dir" -maxdepth 2 -type f \( "${media_args[@]}" \) -print0 2>/dev/null \
+        | xargs -0 -r -n 1 -P "$workers" bash -c 'prewarm_picker_media "$1"' _ 2>/dev/null \
+        | sort >"$rows_file"; then
+        cp "$rows_file" "$rows_cache.tmp.$$"
+        mv -f "$rows_cache.tmp.$$" "$rows_cache"
+        printf '%s\n' "$media_signature" >"$rows_signature_state.tmp.$$"
+        mv -f "$rows_signature_state.tmp.$$" "$rows_signature_state"
+      fi
+    fi
+  fi
 fi
 
 [[ -s $rows_file ]] || {
@@ -341,19 +365,12 @@ if (( prepare_picker )); then
   exit 0
 fi
 
-was_playing=0
-if [[ -s $video_state ]]; then
-  was_playing=1
-  stop_video
-fi
 if [[ $(omarchy-shell image-selector open "" "$rows_b64" "$selected" "$selection_file" "$done_file" false false) != ok ]]; then
-  (( was_playing )) && resume_live_wallpaper
   exit 1
 fi
 
 while [[ ! -e $done_file ]]; do sleep 0.05; done
 if [[ ! -s $selection_file ]]; then
-  (( was_playing )) && resume_live_wallpaper
   exit 0
 fi
 wallpaper=$(<"$selection_file")
@@ -363,6 +380,8 @@ if is_video "$wallpaper"; then
     omarchy-notification-send "Could not read video file" -t 2000
     exit 1
   }
+  exec 9>"$transition_lock"
+  flock 9
   remember_static_background
   printf '%s\n' "$wallpaper" >"$video_state"
   printf '%s\n' "$poster" >"$poster_state"
