@@ -4,8 +4,6 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
-import QtQuick.Effects
-import QtQuick.Shapes
 import QtMultimedia
 import qs.Commons
 
@@ -18,6 +16,9 @@ Item {
   readonly property string cleanupHelper: stateHome + "/omarchy/live-wallpaper/cleanup"
   property string videoPath: ""
   property var readyScreens: ({})
+  property int playGeneration: 0
+  property int revealGeneration: 0
+  property bool revealVideo: true
 
   function openSelector() {
     if (!pickerProc.running) pickerProc.running = true
@@ -27,14 +28,25 @@ Item {
     if (!themeSwitchProc.running) themeSwitchProc.running = true
   }
 
-  function play(path) {
+  function play(path, transitionMs) {
+    revealTimer.stop()
     readyScreens = ({})
+    revealVideo = transitionMs <= 0
     videoPath = String(path || "").trim()
+    playGeneration += 1
+    if (!revealVideo) {
+      revealGeneration = playGeneration
+      revealTimer.interval = transitionMs
+      revealTimer.restart()
+    }
   }
 
   function stop() {
+    revealTimer.stop()
+    revealVideo = false
     videoPath = ""
     readyScreens = ({})
+    playGeneration += 1
   }
 
   function markFrameReady(screenName) {
@@ -76,6 +88,15 @@ Item {
   }
 
   Timer {
+    id: revealTimer
+    repeat: false
+    onTriggered: {
+      if (root.revealGeneration === root.playGeneration && root.videoPath !== "")
+        root.revealVideo = true
+    }
+  }
+
+  Timer {
     interval: 1000
     repeat: true
     running: true
@@ -87,13 +108,15 @@ Item {
   IpcHandler {
     target: "tenzin.live-wallpaper"
 
-    function play(path: string): void { root.play(path) }
+    function play(path: string, transitionMs: int): void { root.play(path, transitionMs) }
     function stop(): void { root.stop() }
     function status(): string {
       return JSON.stringify({
         active: root.videoPath !== "",
         video: root.videoPath,
-        readyScreens: Object.keys(root.readyScreens).length
+        readyScreens: Object.keys(root.readyScreens).length,
+        revealed: root.revealVideo,
+        generation: root.playGeneration
       })
     }
   }
@@ -112,20 +135,26 @@ Item {
     PanelWindow {
       id: panel
       required property var modelData
-      property bool frameReady: false
-      property real revealProgress: 0
+      property bool frameDecoded: false
+      property int playerGeneration: -1
+      property int acceptedGeneration: -1
 
       function syncPlayer() {
-        revealAnimation.stop()
-        frameReady = false
-        revealProgress = 0
+        var generation = root.playGeneration
+        playerGeneration = generation
+        acceptedGeneration = -1
+        frameDecoded = false
         player.stop()
+        player.source = ""
         if (root.videoPath === "") {
-          player.source = ""
           return
         }
         player.source = Util.fileUrl(root.videoPath)
         player.play()
+        Qt.callLater(function() {
+          if (panel.playerGeneration === generation && root.playGeneration === generation)
+            panel.acceptedGeneration = generation
+        })
       }
 
       screen: modelData
@@ -143,79 +172,31 @@ Item {
         loops: MediaPlayer.Infinite
       }
 
-      Item {
-        id: videoLayer
+      VideoOutput {
+        id: videoOutput
         anchors.fill: parent
-        visible: root.videoPath !== "" && panel.frameReady
-        // Prepare the masked layer before exposing the first decoded frame.
-        layer.enabled: root.videoPath !== "" && panel.revealProgress < 1
-        layer.smooth: true
-        layer.effect: MultiEffect {
-          maskEnabled: true
-          maskSource: revealMask
-          maskThresholdMin: 0.5
-          maskSpreadAtMin: 0.02
-        }
-
-        VideoOutput {
-          id: videoOutput
-          anchors.fill: parent
-          fillMode: VideoOutput.PreserveAspectCrop
-        }
-      }
-
-      Item {
-        id: revealMask
-        anchors.fill: parent
-        visible: false
-        layer.enabled: true
-
-        readonly property real slant: -0.18
-        readonly property real centerTop: width / 2 - slant * height / 2
-        readonly property real centerBottom: width / 2 + slant * height / 2
-        readonly property real reach: width / 2 + Math.abs(slant) * height / 2 + 4
-        readonly property real spread: reach * panel.revealProgress
-
-        Shape {
-          anchors.fill: parent
-          antialiasing: true
-          preferredRendererType: Shape.CurveRenderer
-          ShapePath {
-            fillColor: "white"
-            strokeColor: "transparent"
-            startX: revealMask.centerTop - revealMask.spread; startY: 0
-            PathLine { x: revealMask.centerTop + revealMask.spread; y: 0 }
-            PathLine { x: revealMask.centerBottom + revealMask.spread; y: revealMask.height }
-            PathLine { x: revealMask.centerBottom - revealMask.spread; y: revealMask.height }
-            PathLine { x: revealMask.centerTop - revealMask.spread; y: 0 }
-          }
-        }
-      }
-
-      NumberAnimation {
-        id: revealAnimation
-        target: panel
-        property: "revealProgress"
-        from: 0
-        to: 1
-        duration: 420
-        easing.type: Easing.InOutCubic
+        fillMode: VideoOutput.PreserveAspectCrop
+        visible: root.videoPath !== "" && panel.frameDecoded && root.revealVideo
       }
 
       Connections {
         target: root
-        function onVideoPathChanged() { panel.syncPlayer() }
+        function onPlayGenerationChanged() { panel.syncPlayer() }
+        function onRevealVideoChanged() {
+          if (root.revealVideo && panel.frameDecoded && panel.playerGeneration === root.playGeneration)
+            player.play()
+        }
       }
 
       Connections {
         target: videoOutput.videoSink
         function onVideoFrameChanged() {
-          if (root.videoPath !== "" && !panel.frameReady) {
-            panel.frameReady = true
+          if (root.videoPath !== "" && !panel.frameDecoded
+              && panel.acceptedGeneration === root.playGeneration
+              && panel.playerGeneration === root.playGeneration) {
+            panel.frameDecoded = true
+            if (!root.revealVideo) player.pause()
             root.markFrameReady(panel.modelData.name)
-            Qt.callLater(function() {
-              if (root.videoPath !== "" && panel.frameReady) revealAnimation.restart()
-            })
           }
         }
       }

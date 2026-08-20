@@ -50,9 +50,9 @@ stop_legacy_mpvpaper() {
 }
 
 play_video() {
-  local video="$1"
+  local video="$1" transition_ms="${2:-0}"
   for _ in {1..20}; do
-    if omarchy-shell -q "$plugin_id" play "$video" >/dev/null 2>&1; then
+    if omarchy-shell -q "$plugin_id" play "$video" "$transition_ms" >/dev/null 2>&1; then
       return 0
     fi
     sleep 0.05
@@ -112,7 +112,7 @@ resume_live_wallpaper() {
     return 0
   }
   [[ -s $expected_state ]] || printf '%s\n' "$poster" >"$expected_state"
-  play_video "$video"
+  play_video "$video" 0
 }
 
 stop_if_changed() {
@@ -386,7 +386,7 @@ if is_video "$wallpaper"; then
   printf '%s\n' "$wallpaper" >"$video_state"
   printf '%s\n' "$poster" >"$poster_state"
   printf '%s\n' "$poster" >"$expected_state"
-  if ! omarchy theme bg set "$poster" || ! play_video "$wallpaper"; then
+  if ! omarchy theme bg set "$poster" || ! play_video "$wallpaper" 420; then
     restore_static_background
     omarchy-notification-send "Could not set video wallpaper" -t 2000
     exit 1
