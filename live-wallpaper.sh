@@ -3,6 +3,7 @@
 set -u
 
 readonly plugin_id="tenzin.live-wallpaper"
+readonly plugin_dir="$HOME/.config/omarchy/plugins/$plugin_id"
 readonly state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/live-wallpaper"
 readonly cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/omarchy/live-wallpaper"
 readonly video_state="$state_dir/video"
@@ -136,9 +137,31 @@ unwire_menu_override() {
 }
 
 uninstall_plugin_state() {
-  restore_static_background
+  if [[ -s $video_state || -s $fallback_state ]]; then
+    restore_static_background
+  else
+    stop_video
+  fi
   unwire_menu_override
   rm -rf "$state_dir" "$cache_dir"
+}
+
+cleanup_after_unload() {
+  local enabled=""
+
+  for _ in {1..30}; do
+    if [[ ! -d $plugin_dir ]]; then
+      uninstall_plugin_state
+      return 0
+    fi
+
+    enabled=$(omarchy plugin list --json 2>/dev/null \
+      | jq -r --arg id "$plugin_id" '.[] | select(.id == $id) | .enabled' 2>/dev/null || true)
+    [[ $enabled == true ]] && return 0
+    sleep 0.1
+  done
+
+  [[ $enabled == false ]] && unwire_menu_override
 }
 
 thumbnail_for() {
@@ -178,6 +201,10 @@ case "${1:-}" in
     ;;
   --unwire-menu)
     unwire_menu_override
+    exit 0
+    ;;
+  --cleanup-after-unload)
+    cleanup_after_unload
     exit 0
     ;;
   --uninstall)
