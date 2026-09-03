@@ -79,7 +79,7 @@ validate_wallpaper_path() {
   local p="$1"
   [[ -n $p ]] || return 1
   if (( ${#p} > 4096 )); then return 1; fi
-  if [[ $p == *$'\n'* ]] || [[ $p == *$'\t'* ]] || [[ $p == *$'\0'* ]]; then return 1; fi
+  if [[ $p == *$'\n'* ]] || [[ $p == *$'\t'* ]]; then return 1; fi
   [[ $p == /* ]] || return 1
   local canon
   canon=$(readlink -f "$p" 2>/dev/null) || return 1
