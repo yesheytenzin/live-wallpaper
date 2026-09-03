@@ -19,6 +19,42 @@ Item {
   property int playGeneration: 0
   property int revealGeneration: 0
   property bool revealVideo: true
+  readonly property int maxVideoPathLen: 4096
+  readonly property int maxTransitionMs: 4000
+  readonly property string allowedConfigPrefix: home + "/.config/omarchy/backgrounds/"
+  readonly property string allowedStatePrefix: home + "/.local/state/omarchy/current/theme/backgrounds/"
+  readonly property string allowedSystemPrefix: "/usr/share/omarchy/"
+  readonly property string allowedLocalSharePrefix: home + "/.local/share/omarchy/"
+
+  function isValidVideoPath(p) {
+    if (!p) return false
+    var s = String(p)
+    if (s.length === 0 || s.length > maxVideoPathLen) return false
+    if (s.indexOf("\n") !== -1 || s.indexOf("\t") !== -1 || s.indexOf("\0") !== -1) return false
+    // must be absolute
+    if (s.charAt(0) !== "/") return false
+    // reject path traversal attempts with .. (after decode, fileUrl encodes but we check raw)
+    if (s.indexOf("..") !== -1) return false
+    // allow only under known wallpaper roots (user config, state symlink, system themes)
+    if (!(s.indexOf(allowedConfigPrefix) === 0 || s.indexOf(allowedStatePrefix) === 0
+          || s.indexOf(allowedSystemPrefix) === 0 || s.indexOf(allowedLocalSharePrefix) === 0)) {
+      return false
+    }
+    // extension allowlist
+    var lower = s.toLowerCase()
+    if (!(lower.endsWith(".mp4") || lower.endsWith(".mkv") || lower.endsWith(".webm") || lower.endsWith(".mov") || lower.endsWith(".m4v")))
+      return false
+    return true
+  }
+
+  function clampTransitionMs(v) {
+    var n = Number(v)
+    if (!isFinite(n)) return 0
+    n = Math.floor(n)
+    if (n < 0) return 0
+    if (n > maxTransitionMs) return maxTransitionMs
+    return n
+  }
 
   function openSelector() {
     if (!pickerProc.running) pickerProc.running = true
@@ -31,12 +67,25 @@ Item {
   function play(path, transitionMs) {
     revealTimer.stop()
     readyScreens = ({})
-    revealVideo = transitionMs <= 0
-    videoPath = String(path || "").trim()
+    var raw = String(path || "").trim()
+    // bound length early
+    if (raw.length > maxVideoPathLen) raw = raw.substring(0, maxVideoPathLen)
+    var ms = clampTransitionMs(transitionMs)
+    // validate; reject invalid paths silently (do not set videoPath)
+    if (raw !== "" && !isValidVideoPath(raw)) {
+      // invalid path -> treat as stop to avoid arbitrary file load
+      videoPath = ""
+      playGeneration += 1
+      revealVideo = false
+      console.warn("live-wallpaper: rejected invalid video path", raw)
+      return
+    }
+    revealVideo = ms <= 0
+    videoPath = raw
     playGeneration += 1
     if (!revealVideo) {
       revealGeneration = playGeneration
-      revealTimer.interval = transitionMs
+      revealTimer.interval = ms
       revealTimer.restart()
     }
   }
@@ -57,34 +106,79 @@ Item {
     readyScreens = next
   }
 
+  // Watchdogs: abort hung processes after 15s
+  Timer {
+    id: pickerWatchdog
+    interval: 15000
+    repeat: false
+    onTriggered: if (pickerProc.running) pickerProc.running = false
+  }
+  Timer {
+    id: resumeWatchdog
+    interval: 15000
+    repeat: false
+    onTriggered: if (resumeProc.running) resumeProc.running = false
+  }
+  Timer {
+    id: wireMenuWatchdog
+    interval: 15000
+    repeat: false
+    onTriggered: if (wireMenuProc.running) wireMenuProc.running = false
+  }
+  Timer {
+    id: preparePickerWatchdog
+    interval: 15000
+    repeat: false
+    onTriggered: if (preparePickerProc.running) preparePickerProc.running = false
+  }
+  Timer {
+    id: changeCheckWatchdog
+    interval: 8000
+    repeat: false
+    onTriggered: if (changeCheckProc.running) changeCheckProc.running = false
+  }
+  Timer {
+    id: themeSwitchWatchdog
+    interval: 15000
+    repeat: false
+    onTriggered: if (themeSwitchProc.running) themeSwitchProc.running = false
+  }
+
   Process {
     id: pickerProc
-    command: [root.script]
+    command: ["timeout", "30", root.script]
+    onRunningChanged: if (running) pickerWatchdog.restart(); else pickerWatchdog.stop()
   }
 
   Process {
     id: resumeProc
-    command: [root.script, "--resume"]
+    command: ["timeout", "15", root.script, "--resume"]
+    onRunningChanged: if (running) resumeWatchdog.restart(); else resumeWatchdog.stop()
   }
 
   Process {
     id: wireMenuProc
-    command: [root.script, "--wire-menu"]
+    command: ["timeout", "15", root.script, "--wire-menu"]
+    onRunningChanged: if (running) wireMenuWatchdog.restart(); else wireMenuWatchdog.stop()
   }
 
   Process {
     id: preparePickerProc
-    command: [root.script, "--prepare-picker"]
+    command: ["timeout", "30", root.script, "--prepare-picker"]
+    onRunningChanged: if (running) preparePickerWatchdog.restart(); else preparePickerWatchdog.stop()
   }
 
   Process {
     id: changeCheckProc
-    command: [root.script, "--stop-if-changed"]
+    command: ["timeout", "8", root.script, "--stop-if-changed"]
+    onRunningChanged: if (running) changeCheckWatchdog.restart(); else changeCheckWatchdog.stop()
   }
 
   Process {
     id: themeSwitchProc
-    command: ["bash", "-c", "theme=$(omarchy-theme-switcher); [[ -n $theme ]] && omarchy-theme-set \"$theme\" >/dev/null 2>&1 &"]
+    // keep fixed string but wrap with timeout; inner bash already quotes "$theme"
+    command: ["bash", "-c", "timeout 12 bash -c 'theme=$(timeout 8 omarchy-theme-switcher); [[ -n $theme ]] && timeout 8 omarchy-theme-set \"$theme\" >/dev/null 2>&1 &'"]
+    onRunningChanged: if (running) themeSwitchWatchdog.restart(); else themeSwitchWatchdog.stop()
   }
 
   Timer {
@@ -128,7 +222,8 @@ Item {
     preparePickerProc.running = true
   }
 
-  Component.onDestruction: Quickshell.execDetached([root.cleanupHelper, "--cleanup-after-unload"])
+  // Safe cleanup: verify helper is regular file not symlink before exec, via bash guard
+  Component.onDestruction: Quickshell.execDetached(["bash", "-c", 'p="$1"; [[ ! -L "$p" && -f "$p" && -x "$p" ]] && exec "$p" --cleanup-after-unload', "bash", root.cleanupHelper])
 
   Variants {
     model: Quickshell.screens
@@ -148,6 +243,11 @@ Item {
         player.stop()
         player.source = ""
         if (root.videoPath === "") {
+          return
+        }
+        // validated in root.play, double-check before use
+        if (!root.isValidVideoPath(root.videoPath)) {
+          console.warn("live-wallpaper: blocked invalid source in syncPlayer")
           return
         }
         player.source = Util.fileUrl(root.videoPath)
@@ -171,6 +271,14 @@ Item {
         id: player
         videoOutput: videoOutput
         loops: MediaPlayer.Infinite
+        onErrorOccurred: function(error, errorString) {
+          console.warn("live-wallpaper: MediaPlayer error", error, errorString, "source", player.source)
+          // fail closed: clear source to avoid retry loop, keep static fallback
+          if (panel.playerGeneration === root.playGeneration) {
+            panel.frameDecoded = false
+            // do not auto-retry invalid media
+          }
+        }
       }
 
       VideoOutput {
