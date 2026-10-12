@@ -113,7 +113,6 @@ The repository root is the plugin folder:
 - `live-wallpaper.sh` owns media discovery, `ffmpeg` previews, state, and cleanup
 
 Runtime state is stored under `~/.local/state/omarchy/live-wallpaper/`; generated
-previews are stored under `~/.cache/omarchy/live-wallpaper/`.
 
 ## License
 
