@@ -5,7 +5,6 @@ import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
 import QtMultimedia
-import qs.Commons
 
 Item {
   id: root
@@ -25,6 +24,15 @@ Item {
   readonly property string allowedStatePrefix: home + "/.local/state/omarchy/current/theme/backgrounds/"
   readonly property string allowedSystemPrefix: "/usr/share/omarchy/"
   readonly property string allowedLocalSharePrefix: home + "/.local/share/omarchy/"
+
+  // Inlined rather than imported from qs.Commons so the plugin carries no
+  // shell-internal QML dependency, which can vary or be restricted across
+  // Omarchy channels. Percent-encodes each path segment so spaces and special
+  // characters in a wallpaper path do not break MediaPlayer.source.
+  function fileUrl(path) {
+    if (!path) return ""
+    return "file://" + String(path).split("/").map(encodeURIComponent).join("/")
+  }
 
   function isValidVideoPath(p) {
     if (!p) return false
@@ -250,7 +258,7 @@ Item {
           console.warn("live-wallpaper: blocked invalid source in syncPlayer")
           return
         }
-        player.source = Util.fileUrl(root.videoPath)
+        player.source = root.fileUrl(root.videoPath)
         player.play()
         Qt.callLater(function() {
           if (panel.playerGeneration === generation && root.playGeneration === generation)

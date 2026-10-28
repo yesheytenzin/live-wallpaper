@@ -48,6 +48,18 @@ part of the desktop to open the picker.
 
 Both demonstrations show the plugin running on Omarchy.
 
+## Compatibility
+
+Works on all Omarchy channels: stable, rc, edge, and dev. It needs the Omarchy
+Quickshell shell with third-party `service` plugin support, the `omarchy-shell`
+CLI, and the shell's stable `image-selector` IPC target. Those are present and
+unchanged from Omarchy v4.0.6 onward through the latest dev build, so no
+channel-specific setup is required.
+
+The plugin's QML depends only on core Quickshell and Qt Multimedia, not on any
+shell-internal QML module, so the shell's third-party plugin capability
+restrictions do not affect it.
+
 ## Install
 
 ```bash
