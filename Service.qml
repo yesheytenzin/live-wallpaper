@@ -18,6 +18,13 @@ Item {
   property int playGeneration: 0
   property int revealGeneration: 0
   property bool revealVideo: true
+  // Suspend handling: hardware video decoders (e.g. NVDEC) do not survive a
+  // suspend/resume cycle, so the players are released before sleep and
+  // restarted after resume instead of being left with a dead decoder.
+  property bool sleeping: false
+  property string sleepPath: ""
+  property double lastTickMs: 0
+  readonly property int resumeGapMs: 8000
   readonly property int maxVideoPathLen: 4096
   readonly property int maxTransitionMs: 4000
   readonly property string allowedConfigPrefix: home + "/.config/omarchy/backgrounds/"
@@ -104,6 +111,38 @@ Item {
     videoPath = ""
     readyScreens = ({})
     playGeneration += 1
+  }
+
+  // Tear the players down (keeping the selected video) so no decoder holds GPU
+  // state across a suspend. The static wallpaper underneath shows meanwhile.
+  function releaseForSleep() {
+    if (sleeping) return
+    sleeping = true
+    sleepPath = videoPath
+    if (videoPath === "") return
+    revealTimer.stop()
+    videoPath = ""
+    readyScreens = ({})
+    playGeneration += 1
+  }
+
+  function restoreAfterSleep() {
+    if (!sleeping) return
+    sleeping = false
+    var path = sleepPath
+    sleepPath = ""
+    // Skip if something (IPC, theme change) chose a different wallpaper meanwhile.
+    if (path !== "" && videoPath === "") play(path, 0)
+  }
+
+  // Wall-clock jump fallback for resumes the logind signal did not announce.
+  function checkResumeGap() {
+    var now = Date.now()
+    var gap = lastTickMs > 0 ? now - lastTickMs : 0
+    lastTickMs = now
+    if (gap <= resumeGapMs) return
+    if (sleeping) restoreAfterSleep()
+    else if (videoPath !== "") play(videoPath, 0)
   }
 
   function markFrameReady(screenName) {
@@ -203,7 +242,46 @@ Item {
     repeat: true
     running: true
     onTriggered: {
+      root.checkResumeGap()
       if (!changeCheckProc.running) changeCheckProc.running = true
+    }
+  }
+
+  // Delay inhibitor: gives releaseForSleep() time to run before logind sleeps.
+  // It is dropped as soon as the players are released and retaken on resume.
+  Process {
+    id: sleepInhibitProc
+    command: ["systemd-inhibit", "--what=sleep", "--mode=delay", "--who=live-wallpaper",
+              "--why=Releasing video decoder before suspend", "sleep", "infinity"]
+    running: true
+    onExited: function(code, status) { console.log("live-wallpaper: sleep inhibitor exited", code, status) }
+  }
+
+  Timer {
+    id: inhibitReleaseTimer
+    interval: 300
+    repeat: false
+    onTriggered: sleepInhibitProc.running = false
+  }
+
+  Process {
+    id: sleepWatchProc
+    command: ["gdbus", "monitor", "--system", "--dest", "org.freedesktop.login1"]
+    running: true
+    onExited: function(code, status) { console.log("live-wallpaper: logind watcher exited", code, status) }
+    stdout: SplitParser {
+      onRead: function(line) {
+        var text = String(line)
+        if (text.indexOf("PrepareForSleep") === -1) return
+        if (text.indexOf("(true") !== -1) {
+          root.releaseForSleep()
+          inhibitReleaseTimer.restart()
+        } else if (text.indexOf("(false") !== -1) {
+          inhibitReleaseTimer.stop()
+          root.restoreAfterSleep()
+          sleepInhibitProc.running = true
+        }
+      }
     }
   }
 
@@ -228,6 +306,8 @@ Item {
     wireMenuProc.running = true
     resumeProc.running = true
     preparePickerProc.running = true
+    sleepInhibitProc.running = true
+    sleepWatchProc.running = true
   }
 
   // Safe cleanup: verify helper is regular file not symlink before exec, via bash guard
